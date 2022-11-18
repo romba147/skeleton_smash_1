@@ -9,8 +9,8 @@
 class Command {
  public:
   const char* cmd_line;
-  Command(const char* cmd_line) : cmd_line(cmd_line) {};
-  virtual ~Command();
+  Command(const char* cmd_line);
+  virtual ~Command() {}
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
@@ -19,7 +19,7 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
+  BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
 };
 
@@ -71,8 +71,8 @@ class ShowPidCommand : public BuiltInCommand {
 
 class ChpromptCommand : public BuiltInCommand {
   public:
-  ChpromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
-  virtual ~ChpromptCommand();
+  ChpromptCommand(const char* cmd_line);
+  virtual ~ChpromptCommand() {}
   void execute() override;
 };
 
