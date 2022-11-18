@@ -7,6 +7,9 @@
 #include <iomanip>
 #include "Commands.h"
 
+#define MAX_ARGS 20
+#define MIN_ARGS 2
+
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
@@ -39,6 +42,7 @@ string _trim(const std::string& s)
   return _rtrim(_ltrim(s));
 }
 
+
 int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_ENTRY()
   int i = 0;
@@ -52,6 +56,26 @@ int _parseCommandLine(const char* cmd_line, char** args) {
   return i;
 
   FUNC_EXIT()
+}
+
+static char** PrepareArgs (const char* cmd_line, int* arg_num)
+{
+  char** args = (char**) malloc(sizeof(char *)*MAX_ARGS); 
+  if (args == nullptr) return nullptr;
+  for (int i =0; i<MAX_ARGS; i++) {
+    args[i] = nullptr;
+  }
+  *arg_num = _parseCommandLine(cmd_line,args);
+  return args;
+}
+
+void FreeArgs (char** args , int arg_num)
+{
+  for (int i = 0; i<arg_num; i++)
+  {
+    free(args[i]);
+  }
+  free (args);
 }
 
 bool _isBackgroundComamnd(const char* cmd_line) {
@@ -80,7 +104,8 @@ void _removeBackgroundSign(char* cmd_line) {
 // TODO: Add your implementation for classes in Commands.h 
 
 SmallShell::SmallShell() {
-// TODO: add your implementation
+  line_prompt = "smash";
+
 }
 
 SmallShell::~SmallShell() {
@@ -117,4 +142,19 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+}
+
+
+////// Built In Commands ////////
+void ChpromptCommand::execute() {
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  std::string new_prompt;
+  if (arg_num < MIN_ARGS) new_prompt = "smash";
+  else new_prompt = args[1];
+
+  SmallShell & shell = SmallShell::getInstance();
+  shell.line_prompt = new_prompt;
+  FreeArgs(args,arg_num);
+
 }

@@ -7,9 +7,9 @@
 #define COMMAND_MAX_ARGS (20)
 
 class Command {
-// TODO: Add your data members
  public:
-  Command(const char* cmd_line);
+  const char* cmd_line;
+  Command(const char* cmd_line) : cmd_line(cmd_line) {};
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
@@ -19,7 +19,7 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
+  BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
   virtual ~BuiltInCommand() {}
 };
 
@@ -66,6 +66,13 @@ class ShowPidCommand : public BuiltInCommand {
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand() {}
+  void execute() override;
+};
+
+class ChpromptCommand : public BuiltInCommand {
+  public:
+  ChpromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  virtual ~ChpromptCommand();
   void execute() override;
 };
 
@@ -161,9 +168,12 @@ class KillCommand : public BuiltInCommand {
 
 class SmallShell {
  private:
-  // TODO: Add your data members
+  
   SmallShell();
  public:
+  std::string line_prompt;
+
+
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
