@@ -121,19 +121,27 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  if (firstWord.compare("pwd") == 0) {
+ /* if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
-  }
-  else if (firstWord.compare("chprompt") == 0) {
+ }
+ */
+  if (firstWord.compare("chprompt") == 0) {
     return new ChpromptCommand(cmd_line);
   }
+  else if (firstWord.compare("showpid") == 0)
+  {
+    return new ShowPidCommand(cmd_line);
+  }
+  /*
   else {
     return new ExternalCommand(cmd_line);
   }
+  */
   return nullptr;
+  
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
@@ -144,8 +152,19 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
+/////// Command Constructor //////
+
+Command::Command (const char* cmd) :cmd_line(cmd){};
+
+BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
+
 
 ////// Built In Commands ////////
+
+// Change Prompt
+
+ChpromptCommand::ChpromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+
 void ChpromptCommand::execute() {
   int arg_num = 0;
   char** args = PrepareArgs(cmd_line , &arg_num);
@@ -156,5 +175,14 @@ void ChpromptCommand::execute() {
   SmallShell & shell = SmallShell::getInstance();
   shell.line_prompt = new_prompt;
   FreeArgs(args,arg_num);
-
 }
+
+// Show PID
+
+ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+
+void ShowPidCommand::execute() {
+  pid_t pid = getpid();
+  cout<<"smash pid is "<<pid << endl;
+}
+
