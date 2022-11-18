@@ -117,7 +117,7 @@ SmallShell::~SmallShell() {
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-/*
+
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
@@ -127,20 +127,20 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
-  else if ...
-  .....
+  else if (firstWord.compare("chprompt") == 0) {
+    return new ChpromptCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
-  */
   return nullptr;
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
   // TODO: Add your implementation here
   // for example:
-  // Command* cmd = CreateCommand(cmd_line);
-  // cmd->execute();
+   Command* cmd = CreateCommand(cmd_line);
+   cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
