@@ -2,6 +2,10 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -49,10 +53,11 @@ class RedirectionCommand : public Command {
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
-  virtual ~ChangeDirCommand() {}
-  void execute() override;
+  public:
+    char** plastPwd;
+    ChangeDirCommand(const char* cmd_line, char** plastPwd);
+    virtual ~ChangeDirCommand() {}
+    void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
@@ -89,11 +94,22 @@ public:
 class JobsList {
  public:
   class JobEntry {
-   // TODO: Add your data members
+  public:
+    int job_id;
+    pid_t job_pid;
+    time_t entered_list_time;
+    char** process_args;
+    bool is_background;
+    bool is_stopped;
+    JobEntry(int job_id, pid_t job_pid, time_t entred_list_time, char** process_args, bool is_background);
+    ~JobEntry();
   };
- // TODO: Add your data members
+
+  vector<JobEntry> jobs_list;
+  int jobs_counter;
+
  public:
-  JobsList();
+  JobsList(vector<JobEntry> jobs_list, int jobs_counter);
   ~JobsList();
   void addJob(Command* cmd, bool isStopped = false);
   void printJobsList();
@@ -172,8 +188,8 @@ class SmallShell {
   SmallShell();
  public:
   std::string line_prompt;
-
-
+  JobsList jobs_list;
+  char* last_pwd;
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
