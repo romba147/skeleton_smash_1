@@ -9,9 +9,9 @@
 
 #define MAX_ARGS 20
 #define MIN_ARGS 2
+#define LINUX_MAX_PATH_LENGTH 4096
 
 using namespace std;
-
 const std::string WHITESPACE = " \n\r\t\f\v";
 
 #if 0
@@ -103,10 +103,7 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h 
 
-SmallShell::SmallShell() {
-  line_prompt = "smash";
-
-}
+SmallShell::SmallShell() : line_prompt("smash"),last_pwd(nullptr){};
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
@@ -134,6 +131,14 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("showpid") == 0)
   {
     return new ShowPidCommand(cmd_line);
+  }
+  else if(firstWord.compare("pwd") == 0)
+  {
+    return new GetCurrDirCommand(cmd_line);
+  }
+  else if (firstWord.compare("cd") == 0)
+  {
+    return new ChangeDirCommand(cmd_line,&last_pwd);
   }
   /*
   else {
@@ -183,6 +188,68 @@ ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) 
 
 void ShowPidCommand::execute() {
   pid_t pid = getpid();
-  cout<<"smash pid is "<<pid << endl;
+  cout<<"smash pid is "<< pid << endl;
 }
 
+// PWD 
+
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+
+void GetCurrDirCommand::execute() {
+  char* path_buffer = (char *) malloc(sizeof(char) * LINUX_MAX_PATH_LENGTH);
+  if(!path_buffer) return;
+  cout << getcwd(path_buffer, LINUX_MAX_PATH_LENGTH) << endl;
+  free(path_buffer);
+}
+
+// CD
+
+ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) : BuiltInCommand(cmd_line), plastPwd(plastPwd) {};
+
+void ChangeDirCommand::execute() {
+  char* plast_pwd_buffer = (char *) malloc(sizeof(char) * LINUX_MAX_PATH_LENGTH);
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  string special_char = "-";
+  if (arg_num > 2)
+  {
+    cout << "smash error: cd: too many arguments" << endl;
+  }
+  else if((special_char.compare(args[1]) == 0) && !(plastPwd))
+  {
+    cout << "smash error: cd: OLDPWD not set" << endl;
+  }
+
+  else 
+  {
+    getcwd(plast_pwd_buffer, LINUX_MAX_PATH_LENGTH);
+    if (special_char.compare(args[1]) == 0)
+    {
+      chdir(*plastPwd);
+    }
+    else
+    {
+      chdir(args[1]);
+    }
+    if (*plastPwd){
+      free(*plastPwd);
+    }
+    *plastPwd = plast_pwd_buffer;
+  }
+FreeArgs(args, arg_num);
+}
+
+
+//// Jobs List ////
+
+
+JobsList::JobsList(vector<JobEntry> jobs_list, int jobs_counter) : jobs_list({}), jobs_counter(0){};
+
+JobsList::JobsList::JobEntry(int job_id, pid_t job_pid, time_t entered_list_time, char** process_args, bool is_background) : 
+                              job_id(job_id), job_pid(job_pid) , entered_list_time(entered_list_time), process_args(process_args), is_background(is_background)
+                              is_stopped(false) {}
+
+//// External Commandes ////
+
+
+//
