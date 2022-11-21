@@ -6,10 +6,14 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <fcntl.h>
+
 
 #define MAX_ARGS 20
 #define MIN_ARGS 2
 #define LINUX_MAX_PATH_LENGTH 4096
+#define FAIL -1
+#define NO_JOB_ID -1
 
 using namespace std;
 const std::string WHITESPACE = " \n\r\t\f\v";
@@ -140,6 +144,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   {
     return new ChangeDirCommand(cmd_line,&last_pwd);
   }
+  else if (firstWord.compare("jobs") == 0)
+  {
+    return new JobsCommand(cmd_line, jobs_list);
+  }
   /*
   else {
     return new ExternalCommand(cmd_line);
@@ -164,7 +172,7 @@ Command::Command (const char* cmd) :cmd_line(cmd){};
 BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
 
 
-////// Built In Commands ////////
+////// Simple Built In Commands ////////
 
 // Change Prompt
 
@@ -187,7 +195,7 @@ void ChpromptCommand::execute() {
 ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
 
 void ShowPidCommand::execute() {
-  pid_t pid = getpid();
+  __pid_t pid = getpid();
   cout<<"smash pid is "<< pid << endl;
 }
 
@@ -243,13 +251,174 @@ FreeArgs(args, arg_num);
 //// Jobs List ////
 
 
-JobsList::JobsList(vector<JobEntry> jobs_list, int jobs_counter) : jobs_list({}), jobs_counter(0){};
+JobsList::JobsList() : jobs_list({}), jobs_counter(0){};
 
-JobsList::JobsList::JobEntry(int job_id, pid_t job_pid, time_t entered_list_time, char** process_args, bool is_background) : 
-                              job_id(job_id), job_pid(job_pid) , entered_list_time(entered_list_time), process_args(process_args), is_background(is_background)
-                              is_stopped(false) {}
+JobsList::JobEntry::JobEntry(int job_id, __pid_t job_pid, time_t entred_list_time, char** process_args, bool is_background): job_id(job_id),
+                             job_pid(job_pid),entered_list_time(entered_list_time),process_args(process_args),is_background(is_background),is_stopped(false){};
+
+JobsList::JobEntry* JobsList::getJobById(int jobId) 
+{
+  for(int i = 0; i < jobs_list.size(); i++)
+  {
+    if(jobs_list[i].job_id == jobId)
+    {
+      return &jobs_list[i];
+    }
+  }
+}
+
+JobsList::JobEntry* JobsList::getLastJob(int* lastJobId)
+{
+  int last_job_id = NO_JOB_ID;
+  for(int i = 0; i < jobs_list.size(); i++)
+  {
+    if(jobs_list[i].job_id > last_job_id)
+    {
+      last_job_id = jobs_list[i].job_id;
+    }
+  }
+  *lastJobId = last_job_id;
+  JobEntry* last_job_entry = getJobById(last_job_id);
+  return last_job_entry;
+}
+
+void JobsList::addJob(const char* cmd_line,__pid_t job_pid, bool isStopped)
+{
+  int args_num = 0;
+  char** args_for_job = PrepareArgs(cmd_line, &args_num);
+  jobs_list.push_back(JobEntry(jobs_counter, job_pid, time(nullptr), args_for_job, _isBackgroundComamnd(cmd_line)));
+  //need to free args for job
+  jobs_counter += 1;
+}
+
+void JobsList::killAllJobs()
+{
+  for(int i = 0; i < jobs_list.size(); i++)
+  {
+    kill(jobs_list[i].job_pid, SIGKILL);
+  }
+}
+
+void JobsList::removeFinishedJobs()
+{
+
+}
+
+void JobsList::printJobsList()
+{
+  for(int i = 0; i < jobs_list.size(); i++)
+  {
+    time_t elapsed_time = difftime(time(nullptr), jobs_list[i].entered_list_time);
+    if(jobs_list[i].is_stopped == true)
+    {
+      cout << "[" << jobs_list[i].job_id << "] " << jobs_list[i].process_args[0] << " : ";
+      cout << jobs_list[i].job_pid << " " << elapsed_time << " " << "(stopped)" << endl;
+    }
+    else
+    {
+      cout << "[" << jobs_list[i].job_id << "] " << jobs_list[i].process_args[0] << " : ";
+      cout << jobs_list[i].job_pid << " " << elapsed_time << " " << endl;      
+    }
+  }
+}
+
+void JobsList::removeJobById(int jobId)
+{
+
+}
+
+JobsList::JobEntry * JobsList::getLastStoppedJob(int *jobId)
+{
+  
+}
+
+//Jobs command
+
+JobsCommand::JobsCommand(const char* cmd_line, JobsList jobs_list) : BuiltInCommand(cmd_line), jobs_list(jobs_list) {}
+
+void JobsCommand::execute() {
+  jobs_list.printJobsList();
+}
 
 //// External Commandes ////
 
+ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){};
 
-//
+void ExternalCommand::execute()
+{
+  
+  std::string command_line = _trim(string(cmd_line));
+  bool is_special_command = false;
+  for (int i =i ;cmd_line[i] != '\0' ; i++)
+  {
+    if (cmd_line[i] == '?' || cmd_line[i] == '*')
+    {
+      is_special_command == true;
+      break;
+    }
+  }
+
+  char new_command [LINUX_MAX_PATH_LENGTH];
+  strcpy(new_command,command_line.c_str());
+
+  bool background_command = _isBackgroundComamnd(cmd_line);
+  if(background_command)
+  {
+    _removeBackgroundSign(new_command);
+  }  
+  //TODO prepare argumants
+  char* binbash = "/bin/bash";
+  char* special_args[] =  {binbash,"-c",new_command,nullptr};
+
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  
+  __pid_t process_pid = fork();
+  if (process_pid ==0)
+  {
+    if (setpgrp() == FAIL)
+    {
+      perror("smash: setpgrp failed");
+      return;
+    }
+    if (is_special_command)
+    {
+      if (execv(binbash,special_args) == FAIL)
+      {
+        perror("smash: external special process failed");
+        return;
+      }
+    }
+    else
+    {
+      if (execvp(args[0],args) == FAIL)
+      {
+        perror("smash: external process failed");
+        return;
+      }
+    }
+  }
+  else
+  {
+    SmallShell &smash = SmallShell::getInstance();
+    if(background_command) 
+    {
+    smash.jobs_list.addJob(new_command,process_pid,false);
+    FreeArgs(args,arg_num);
+    }
+    else
+    {
+      int status;
+      if(waitpid(process_pid,&status,WUNTRACED) == FAIL)
+      {
+        perror("smash: wait failed");
+      }
+    }
+  }
+   FreeArgs(args,arg_num);
+}
+
+
+//// Jobs Built In Commandes/////
+
+
