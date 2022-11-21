@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <iterator>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -96,22 +97,21 @@ class JobsList {
   class JobEntry {
   public:
     int job_id;
-    pid_t job_pid;
+    __pid_t job_pid;
     time_t entered_list_time;
     char** process_args;
     bool is_background;
     bool is_stopped;
-    JobEntry(int job_id, pid_t job_pid, time_t entred_list_time, char** process_args, bool is_background);
-    ~JobEntry();
+    JobEntry(int job_id, __pid_t job_pid, time_t entred_list_time, char** process_args, bool is_background);
+    ~JobEntry() = default;
   };
 
-  vector<JobEntry> jobs_list;
-  int jobs_counter;
-
  public:
-  JobsList(vector<JobEntry> jobs_list, int jobs_counter);
+  std::vector<JobEntry> jobs_list;
+  int jobs_counter = 0;
+  JobsList();
   ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
+  void addJob(const char* cmd_line, __pid_t job_pid, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -123,9 +123,9 @@ class JobsList {
 };
 
 class JobsCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
+  JobsList jobs_list;
+  JobsCommand(const char* cmd_line, JobsList jobs_list);
   virtual ~JobsCommand() {}
   void execute() override;
 };
