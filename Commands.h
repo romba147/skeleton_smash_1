@@ -84,8 +84,8 @@ class ChpromptCommand : public BuiltInCommand {
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
-public:
+ JobsList jobs_list;
+ public:
   QuitCommand(const char* cmd_line, JobsList* jobs);
   virtual ~QuitCommand() {}
   void execute() override;
@@ -113,7 +113,7 @@ class JobsList {
   ~JobsList();
   void addJob(const char* cmd_line, __pid_t job_pid, bool isStopped = false);
   void printJobsList();
-  void killAllJobs();
+  void killAllJobs(int* killed);
   void removeFinishedJobs();
   JobEntry * getJobById(int jobId);
   void removeJobById(int jobId);
@@ -131,7 +131,7 @@ class JobsCommand : public BuiltInCommand {
 };
 
 class ForegroundCommand : public BuiltInCommand {
- // TODO: Add your data members
+ JobsList* jobs_list;
  public:
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ForegroundCommand() {}
@@ -139,7 +139,7 @@ class ForegroundCommand : public BuiltInCommand {
 };
 
 class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
+ JobsList* jobs_list;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
