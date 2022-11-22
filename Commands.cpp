@@ -46,7 +46,6 @@ string _trim(const std::string& s)
   return _rtrim(_ltrim(s));
 }
 
-
 int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_ENTRY()
   int i = 0;
@@ -105,6 +104,18 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+bool _is_number (char* string)
+{
+  for (int i =0; string[i] !='\0';i++)
+  {
+    if(!isdigit(string[i]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 // TODO: Add your implementation for classes in Commands.h 
 
 SmallShell::SmallShell() : line_prompt("smash"),last_pwd(nullptr){};
@@ -148,11 +159,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   {
     return new JobsCommand(cmd_line, jobs_list);
   }
-  /*
   else {
     return new ExternalCommand(cmd_line);
   }
-  */
   return nullptr;
   
 }
@@ -265,6 +274,7 @@ JobsList::JobEntry* JobsList::getJobById(int jobId)
       return &jobs_list[i];
     }
   }
+  return nullptr;
 }
 
 JobsList::JobEntry* JobsList::getLastJob(int* lastJobId)
@@ -282,6 +292,9 @@ JobsList::JobEntry* JobsList::getLastJob(int* lastJobId)
   return last_job_entry;
 }
 
+
+
+//TODO add cmd line to job entery
 void JobsList::addJob(const char* cmd_line,__pid_t job_pid, bool isStopped)
 {
   int args_num = 0;
@@ -291,12 +304,15 @@ void JobsList::addJob(const char* cmd_line,__pid_t job_pid, bool isStopped)
   jobs_counter += 1;
 }
 
-void JobsList::killAllJobs()
+void JobsList::killAllJobs(int* killed)
 {
+  this->removeFinishedJobs();
+  *killed = jobs_list.size();
   for(int i = 0; i < jobs_list.size(); i++)
   {
     kill(jobs_list[i].job_pid, SIGKILL);
   }
+  
 }
 
 void JobsList::removeFinishedJobs()
@@ -337,6 +353,7 @@ JobsList::JobEntry * JobsList::getLastStoppedJob(int *jobId)
 JobsCommand::JobsCommand(const char* cmd_line, JobsList jobs_list) : BuiltInCommand(cmd_line), jobs_list(jobs_list) {}
 
 void JobsCommand::execute() {
+  jobs_list.removeFinishedJobs();
   jobs_list.printJobsList();
 }
 
@@ -419,6 +436,127 @@ void ExternalCommand::execute()
 }
 
 
-//// Jobs Built In Commandes/////
+//// Foreground Command/////
+ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line) , jobs_list(jobs){};
 
+
+void ForegroundCommand::execute()
+{
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  if ((arg_num  > 2) || !_is_number(args[1] ))
+  {
+    cout << "smash error: fg:invalid arguments"<<endl;
+    FreeArgs(args,arg_num);
+    return;
+  }
+  int last_job_id;
+  JobsList::JobEntry* req_job;
+
+  if (arg_num ==2)
+  {
+    req_job = jobs_list->getJobById(stoi(args[1]));
+    if (!req_job)
+    {
+      cout << "smash error: fg:job-id "<<args[1]<<" does not exist"<<endl;
+      FreeArgs(args,arg_num);
+      return;
+    }
+  }
+  else
+  {
+    int job_id;
+    req_job = jobs_list->getLastJob(&job_id);
+    if (!req_job)
+    {
+      cout << "smash error: fg:jobs list is empty"<<endl;
+      FreeArgs(args,arg_num);
+      return;
+    }
+  }
+
+  if (req_job->is_stopped)
+  {
+    kill(req_job->job_pid,SIGCONT);
+  }
+  //TODO : print cmd line after adding cmd line to entery
+  //cout<<req_job.
+
+  jobs_list->removeJobById(req_job->job_id);
+  int process_status;
+  waitpid(req_job->job_pid,&process_status,WUNTRACED);
+  FreeArgs(args,arg_num);
+}
+
+//// Background Commaned//////
+BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line) , jobs_list(jobs){};
+
+void BackgroundCommand::execute()
+{
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  if ((arg_num  > 2) || !_is_number(args[1] ))
+  {
+    cout << "smash error: bg:invalid arguments"<<endl;
+    FreeArgs(args,arg_num);
+    return;
+  }
+  int last_job_id;
+  JobsList::JobEntry* req_job;
+
+  if (arg_num ==2)
+  {
+    req_job = jobs_list->getJobById(stoi(args[1]));
+    if (!req_job)
+    {
+      cout << "smash error: bg:job-id "<<args[1]<<" does not exist"<<endl;
+      FreeArgs(args,arg_num);
+      return;
+    }
+  }
+  else
+  {
+    int job_id;
+    req_job = jobs_list->getLastStoppedJob(&job_id);
+    if (!req_job)
+    {
+      cout << "smash error: bg:there is no stopped jobs to resume"<<endl;
+      FreeArgs(args,arg_num);
+      return;
+    }
+  }
+
+  if (!req_job->is_stopped)
+  {
+      cout << "smash error: bg:job-id "<<args[1]<<" is already running in the background"<<endl;
+      FreeArgs(args,arg_num);
+      return;
+  }
+
+  kill(req_job->job_pid,SIGCONT);
+  //TODO : print cmd line after adding cmd line to entery
+  //cout<<req_job.
+
+  FreeArgs(args,arg_num);
+}
+
+
+//// Quit /////
+
+QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line) , jobs_list(jobs){};
+
+void QuitCommand::execute()
+{
+  int arg_num = 0;
+  char** args = PrepareArgs(cmd_line , &arg_num);
+  string killfalg = "kill";
+  if (killfalg.compare(args[1]) == 0)
+  {
+    int killed;
+    jobs_list.killAllJobs(&killed);
+
+    cout << "sending SIGKILL signal to " <<killed<<" jobs:" <<endl;
+  }
+
+}
 
