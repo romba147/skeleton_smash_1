@@ -100,9 +100,11 @@ class JobsList {
     __pid_t job_pid;
     time_t entered_list_time;
     char** process_args;
+    int num_of_args;
     bool is_background;
     bool is_stopped;
-    JobEntry(int job_id, __pid_t job_pid, time_t entred_list_time, char** process_args, bool is_background);
+    const char* cmd_line;
+    JobEntry(int job_id, __pid_t job_pid, time_t entred_list_time, char** process_args,int num_of_args, bool is_background, const char* cmd_line);
     ~JobEntry() = default;
   };
 
